@@ -1,0 +1,14 @@
+server {
+    listen 80 {% if item.is_default is defined %} default_server {% endif %};
+    server_name {{ item.name }} www.{{ item.name }};
+
+    location /.well-known/acme-challenge {
+        root /var/www/letsencrypt;
+        try_files $uri $uri/ =404;
+    }
+
+    location / {
+        rewrite ^ https://{{ item.name }}$request_uri? permanent;
+    }
+}
+

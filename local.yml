@@ -1,0 +1,84 @@
+---
+- hosts: localhost
+  connection: local
+  become: true
+  vars:
+    domains:
+      - is_static: True
+        name: "notmyfoo.io"
+        is_default: True
+      - name: "jupyterhub.notmyfoo.io"
+        port: 3000
+
+  pre_tasks:
+  - name: update repositories
+    apt: update_cache=yes
+    changed_when: false
+
+  tasks:
+  - name: Upgrading all packages (Ubuntu/Debian)
+    apt:
+      upgrade: dist
+
+
+  - name: install packages
+    package:
+      name:
+        - letsencrypt
+        - nginx
+
+  - name: create letsencrypt directory
+    file: name=/var/www/letsencrypt state=directory
+
+  - name: Remove default nginx config
+    file: name=/etc/nginx/sites-enabled/default state=absent
+
+  - name: Install system nginx config
+    template:
+      src: templates/nginx.conf.j2
+      dest: /etc/nginx/nginx.conf
+
+  - name: Install nginx site for letsencrypt requests
+    template:
+      src: templates/nginx-http.j2
+      dest: /etc/nginx/sites-enabled/http-{{ item.name }}
+    loop: "{{ domains }}"
+    register: install_http
+
+  - name: Reload nginx to activate letsencrypt site
+    service: name=nginx state=restarted
+    when: install_http.changed
+
+  - name: Create letsencrypt certificate
+    shell:
+      cmd: letsencrypt certonly -n --webroot -w /var/www/letsencrypt -m `echo bGF1cmVudC54dUBub3RteWZvby5pbwo= | base64 --decode` --agree-tos -d {{ item.name }}
+      creates: /etc/letsencrypt/live/{{ item.name }}
+    loop: "{{ domains }}"
+
+  - name: Generate dhparams
+    shell:
+      cmd: openssl dhparam -out /etc/nginx/dhparams.pem 2048
+      creates: /etc/nginx/dhparams.pem
+
+  - name: Hide nginx version
+    template:
+      src: templates/nginx-server-token-off.j2
+      dest: /etc/nginx/sites-enabled/https-server-token-off
+
+  - name: Install nginx site for all sites
+    template:
+      src: templates/nginx-https.j2
+      dest: /etc/nginx/sites-enabled/https-{{ item.name }}
+    loop: "{{ domains }}"
+    register: install_https
+
+  - name: Reload nginx to activate specified site
+    service: name=nginx state=restarted
+    when: install_https.changed
+
+  - name: Add letsencrypt cronjob for cert renewal
+    cron:
+      name: letsencrypt_renewal
+      special_time: weekly
+      job: certbot renew && service nginx reload
+
