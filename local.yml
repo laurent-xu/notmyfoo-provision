@@ -82,13 +82,18 @@
       special_time: weekly
       job: certbot renew && service nginx reload
 
+  - name: get the username running the deploy
+    become: false
+    local_action: command whoami
+    register: username_on_the_host
+
   - name: Create www folder for static sites
     file:
       path: "/var/www/{{ item.name }}"
       state: directory
       mode: 0755
-      owner: "{{ ansible_user_id }}"
-      group: "{{ ansible_user_id }}"
+      owner: "{{ username_on_the_host.stdout }}"
+      group: "{{ username_on_the_host.stdout }}"
     loop: "{{ domains }}"
     when: item.is_static is defined and item.is_static
 
