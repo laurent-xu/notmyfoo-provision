@@ -97,5 +97,5 @@
     cron:
       name: Run ansible provision
       minute: "*/10"
-      job: wget -O- https://raw.githubusercontent.com/laurent-xu/notmyfoo-provision/main/cron.sh | bash -s {{ansible_user_id}}
+      job: wget -O- https://raw.githubusercontent.com/laurent-xu/notmyfoo-provision/main/cron.sh | bash
 
