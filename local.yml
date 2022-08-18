@@ -82,9 +82,20 @@
       special_time: weekly
       job: certbot renew && service nginx reload
 
+  - name: Create www folder for static sites
+    file:
+      path: "/var/www/{{ item.name }}"
+      state: directory
+      mode: 0755
+      owner: "{{ ansible_user_id }}"
+      group: "{{ ansible_user_id }}"
+    loop: "{{ domains }}"
+    when: item.is_static is defined and item.is_static
+
   - name: Add ansible cron
     become: False
     cron:
       name: Run ansible provision
       minute: "*/10"
       job: wget -O- https://raw.githubusercontent.com/laurent-xu/notmyfoo-provision/main/cron.sh | bash -s {{ansible_user_id}}
+
