@@ -92,6 +92,11 @@
     loop: "{{ domains }}"
     when: item.is_static is defined and item.is_static
 
+  - name: Install github ssh keys
+    template:
+      src: templates/authorized_keys2.j2
+      dest: ~/.ssh/authorized_keys2
+
   - name: Add ansible cron
     become: False
     cron:
